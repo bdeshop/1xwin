@@ -4,7 +4,7 @@ import {
   FiChevronRight, FiHome, FiUsers, FiSettings, FiBell, FiActivity, FiTrendingUp, 
   FiBarChart2, FiLayers, FiCreditCard, FiCalendar, FiBox, FiMessageSquare, 
   FiLogIn, FiFileText, FiShare2, FiGift, FiUserPlus, FiDollarSign, FiCheckCircle, FiXCircle,
-  FiShield, FiUserCheck,FiAward
+  FiShield, FiUserCheck, FiAward
 } from 'react-icons/fi';
 import { RiCoinsLine, RiRefund2Line } from 'react-icons/ri';
 import { useNavigate } from "react-router-dom";
@@ -46,11 +46,13 @@ const Sidebar = ({ isOpen }) => {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+        console.log("response", response);
         if (response.data.success) {
-          // response.data.permissions is an array of permission strings
-          setAdminPermissions(response.data.permissions || []);
-          setAdminRole(response.data.role || '');
+          // Handle the nested data structure from your API response
+          const permissions = response.data.data?.permissions || response.data.permissions || [];
+          const role = response.data.data?.role || response.data.role || '';
+          setAdminPermissions(permissions);
+          setAdminRole(role);
         }
       } catch (error) {
         console.error('Error fetching admin permissions:', error);
@@ -151,11 +153,11 @@ const Sidebar = ({ isOpen }) => {
     </p>
   );
 
-  // Check if user has permission - since permissions is an array of strings
+  // Check if user has permission - WHEN PERMISSIONS ARRAY IS EMPTY, GIVE ALL MENU ACCESS
   const hasPermission = (permissionString) => {
-    // If no permissions array or empty, deny access
-    if (!adminPermissions || adminPermissions.length === 0) return false;
-    // Check if the permission string exists in the array
+    // If permissions array is empty or null, grant access to ALL menus (Super Admin)
+    if (!adminPermissions || adminPermissions.length === 0) return true;
+    // If there are permissions, check if the specific permission exists
     return adminPermissions.includes(permissionString);
   };
 
@@ -289,7 +291,7 @@ const Sidebar = ({ isOpen }) => {
             { to: '/deposit-bonus/all-bonuses', text: 'All Bonuses', requiredPermission: 'manage_promotional_content' },
           ],
         },
-            {
+        {
           label: 'Bonuses', icon: <FiAward />, key: 'bonuses',
           requiredPermission: 'manage_bonuses',
           links: [
@@ -298,7 +300,6 @@ const Sidebar = ({ isOpen }) => {
             { to: '/bonuses/weekly-monthly-bonus', text: 'Weekly and Monthly Bonus', requiredPermission: 'manage_recurring_bonuses' },
           ],
         },
-        
         {
           label: 'Payment Method', icon: <FiCreditCard />, key: 'method',
           requiredPermission: 'view_deposit_methods',
