@@ -480,9 +480,9 @@ const HomeContent = () => {
             
             {/* The 2-Part Rotating Ring with increased width and neon glow */}
             <div 
-              className="absolute w-full h-full rounded-full border-[5px] border-transparent border-t-[#ff0000] border-b-[#ff0000] animate-spin"
+              className="absolute w-full h-full rounded-full border-[5px] border-transparent border-t-cyan-600 border-b-cyan-600 animate-spin"
               style={{
-                filter: 'drop-shadow(0 0 10px #ff0000) drop-shadow(0 0 4px #ff0000)',
+                filter: 'drop-shadow(0 0 10px #00A3FF) drop-shadow(0 0 4px #00A3FF)',
                 animationDuration: '1s'
               }}
             ></div>
