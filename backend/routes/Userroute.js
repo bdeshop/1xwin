@@ -2683,7 +2683,7 @@ Userrouter.post("/getGameLink", async (req, res) => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'x-dstgame-key': '665ec86d74fcb110d5a60421002b82df'
+            'x-dstgame-key': 'a207109e5a3a98d4dc3f09d02ac78292'
           }
         }
       );
