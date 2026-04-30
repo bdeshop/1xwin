@@ -102,8 +102,8 @@ const OTP_CONFIG = {
     MAX_ATTEMPTS: 3,
     RESEND_COOLDOWN_SECONDS: 60,
     SENDER_ID:'8809617611338',
-    API_BASE_URL:'https://api.o-sms.com/api/service',
-    TOKEN:"a638e16441b7287d4378f1a80f4f3052e011c4e735fa8f6af22198bfed4b0cee"
+    API_BASE_URL:'https://xend.positiveapi.com/api/v3',
+    TOKEN:"419|xFSHHY3vGlHDNE3XFijfExhQBpWsC64VsL51BYPO"
 };
 
 // Helper function to generate OTP
@@ -148,11 +148,13 @@ async function sendSMS(phoneNumber, message) {
             apiPhone = '880' + apiPhone;
         }
         
-        const url = `${OTP_CONFIG.API_BASE_URL}/send-otp`;
+        const url = `${OTP_CONFIG.API_BASE_URL}/sms/send`;
         
         // Prepare the request body
         const requestBody = {
-            phoneNumber:apiPhone
+            recipient: apiPhone,
+            sender_id: OTP_CONFIG.SENDER_ID,
+            message: message
         };
 
         console.log(`Sending SMS to ${apiPhone}: ${message.substring(0, 20)}...`);
@@ -164,7 +166,7 @@ async function sendSMS(phoneNumber, message) {
                 'Content-Type': 'application/json'
             }
         });
-        console.log('SMS API response:', response.data);
+        
         // Check response status
         if (response.data && response.data.status === 'success') {
             return { success: true, data: response.data };
