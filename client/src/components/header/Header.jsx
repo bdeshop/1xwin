@@ -777,12 +777,6 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
       subItems: [],
       path: "/coming-soon?title=New Member Guide"
     },
-    {
-      title: t.bjForum,
-      icon: <FaComments className="w-5 h-5 min-w-[20px]" />,
-      subItems: [],
-      path: "/coming-soon?title=BJ Forum"
-    },
   ];
 
   const toggleMenu = (title) => {

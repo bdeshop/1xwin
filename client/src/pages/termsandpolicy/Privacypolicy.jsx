@@ -91,7 +91,7 @@ const Privacypolicy = () => {
 
               <section className="space-y-2">
                 <h2 className="text-[14px] font-bold">Our Data Protection Officer</h2>
-                <p>If you have concerns or would like any further information about how 1xwin handles your personal information, you can contact our Data Protection Officer at support.bd@baji.live.</p>
+                <p>If you have concerns or would like any further information about how 1xwin handles your personal information, you can contact our Data Protection Officer at support.bd@1xwin.live.</p>
               </section>
 
               <section className="space-y-3">

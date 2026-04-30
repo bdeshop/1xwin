@@ -114,7 +114,7 @@ const Responsiblegaming = () => {
                 <h2 className="text-[14px] font-bold">Information and contact</h2>
                 <p>Our customer support team will help you via email at all time without any additional costs for you:</p>
                 <ul className="list-disc ml-8">
-                  <li>email: support.bd@baji.live.</li>
+                  <li>email: support.bd@1xwin.live.</li>
                 </ul>
                 <p>Our customer support team will of course not give out any information about You without Your consent to anyone else</p>
                 <p>In addition you also can take a self-test, if You are already gambling addicted at: https://www.begambleaware.org/gambling-problems/do-i-have-a-gambling-problem/</p>

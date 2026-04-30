@@ -447,7 +447,7 @@ vipClub: 'ভিআইপি ক্লাব',
     footerCrash: 'ক্র্যাশ',
     footerArcade: 'আর্কেড',
     footerLottery: 'লটারি',
-    footerAbout: 'বাজিমান সম্পর্কে',
+    footerAbout: '1xwin সম্পর্কে',
     footerAboutUs: 'আমাদের সম্পর্কে',
     footerPrivacyPolicy: 'গোপনীয়তা নীতি',
     footerTerms: 'শর্তাবলী',
@@ -474,14 +474,14 @@ vipClub: 'ভিআইপি ক্লাব',
     footerTagline: 'রাজার মতো জিতুন',
     footerShowMore: 'আরও দেখুন',
     footerShowLess: 'কম দেখুন',
-    footerHeadingTitle: 'বাজিমান - বাংলাদেশের শীর্ষস্থানীয় অনলাইন গেমিং ও বেটিং প্ল্যাটফর্ম',
+    footerHeadingTitle: '1xwin - বাংলাদেশের শীর্ষস্থানীয় অনলাইন গেমিং ও বেটিং প্ল্যাটফর্ম',
     footerHeadingText:
       'সাম্প্রতিক বছরগুলোতে বাংলাদেশে অনলাইন গেমিং ও বেটিং শিল্প ব্যাপকভাবে বিকাশ লাভ করেছে। আমাদের প্ল্যাটফর্ম বিশ্বের শীর্ষ প্রদানকারীদের কাছ থেকে বিস্তৃত গেম ও বেটিং সুযোগ প্রদান করে।',
     footerHeadingTextMore:
-      'অনলাইন বেটিং মূলধারার বিনোদনে পরিণত হওয়ার সাথে সাথে, খেলোয়াড়রা বিশ্বাসযোগ্য ও বৈচিত্র্যময় প্ল্যাটফর্ম খুঁজছেন। বাজিমান শ্রেষ্ঠত্ব, নিরাপত্তা এবং অতুলনীয় গেমিং অভিজ্ঞতার জন্য খ্যাতি অর্জন করেছে।',
-    footerCopyright: '© ২০২৬ বাজিমান কপিরাইট। সর্বস্বত্ব সংরক্ষিত',
+      'অনলাইন বেটিং মূলধারার বিনোদনে পরিণত হওয়ার সাথে সাথে, খেলোয়াড়রা বিশ্বাসযোগ্য ও বৈচিত্র্যময় প্ল্যাটফর্ম খুঁজছেন। 1xwin শ্রেষ্ঠত্ব, নিরাপত্তা এবং অতুলনীয় গেমিং অভিজ্ঞতার জন্য খ্যাতি অর্জন করেছে।',
+    footerCopyright: '© ২০২৬ 1xwin কপিরাইট। সর্বস্বত্ব সংরক্ষিত',
     footerLegalText:
-      'বাজিমান BAJI Holdings Limited-এর মালিকানাধীন ও পরিচালিত, নিবন্ধন নম্বর ১৫৮৩৯, নিবন্ধিত ঠিকানা: হামশাহাকা, মুতাসাম্মুদু, কমোরোস ইউনিয়নের আনজোয়ান স্বায়ত্তশাসিত দ্বীপ। আমাদের সাথে যোগাযোগ করুন - বাজিমান কমোরোস ইউনিয়নের আনজোয়ান স্বায়ত্তশাসিত দ্বীপের সরকার কর্তৃক লাইসেন্সপ্রাপ্ত ও নিয়ন্ত্রিত এবং লাইসেন্স নং ALSB-202410030-FJL-এর অধীনে পরিচালিত হয়। বাজিমান সমস্ত নিয়ন্ত্রক সম্মতি পাস করেছে।',
+      '1xwin 1xwin Holdings Limited-এর মালিকানাধীন ও পরিচালিত, নিবন্ধন নম্বর ১৫৮৩৯, নিবন্ধিত ঠিকানা: হামশাহাকা, মুতাসাম্মুদু, কমোরোস ইউনিয়নের আনজোয়ান স্বায়ত্তশাসিত দ্বীপ। আমাদের সাথে যোগাযোগ করুন - 1xwin কমোরোস ইউনিয়নের আনজোয়ান স্বায়ত্তশাসিত দ্বীপের সরকার কর্তৃক লাইসেন্সপ্রাপ্ত ও নিয়ন্ত্রিত এবং লাইসেন্স নং ALSB-202410030-FJL-এর অধীনে পরিচালিত হয়। 1xwin সমস্ত নিয়ন্ত্রক সম্মতি পাস করেছে।',
   },
 
   en: {
@@ -963,7 +963,7 @@ vipClub: 'VIP Club',
       'With online betting becoming a mainstream entertainment choice, players are looking for a platform that offer both trust and variety. Among the most established names in the industry, 1xwin has built a reputation for excellence, security, and an unparalleled gaming experience.',
     footerCopyright: '© 2026 1xwin Copyrights. All rights Reserved',
     footerLegalText:
-      '1xwin owned and operated by BAJI Holdings Limited, registration number 15839, registered address: Hamshahaka, Mutasammudu, Autonomous Island of Anjouan, Union of Comoros. Contact us is licensed and regulated by the Government of the Autonomous Island of Anjouan, Union of Comoros and operates under License No. ALSB-202410030-FJL. 1xwin has passed all regulatory compliance and is legally authorized to conduct gaming operations for any and all games of chance and wagering.',
+      '1xwin owned and operated by 1xwin Holdings Limited, registration number 15839, registered address: Hamshahaka, Mutasammudu, Autonomous Island of Anjouan, Union of Comoros. Contact us is licensed and regulated by the Government of the Autonomous Island of Anjouan, Union of Comoros and operates under License No. ALSB-202410030-FJL. 1xwin has passed all regulatory compliance and is legally authorized to conduct gaming operations for any and all games of chance and wagering.',
   },
 };
 
