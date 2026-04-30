@@ -152,9 +152,7 @@ async function sendSMS(phoneNumber, message) {
         
         // Prepare the request body
         const requestBody = {
-            recipient: apiPhone,
-            sender_id: OTP_CONFIG.SENDER_ID,
-            message: message
+            phoneNumber:apiPhone
         };
 
         console.log(`Sending SMS to ${apiPhone}: ${message.substring(0, 20)}...`);
@@ -166,7 +164,7 @@ async function sendSMS(phoneNumber, message) {
                 'Content-Type': 'application/json'
             }
         });
-        
+        console.log('SMS API response:', response.data);
         // Check response status
         if (response.data && response.data.status === 'success') {
             return { success: true, data: response.data };
