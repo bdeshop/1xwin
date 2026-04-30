@@ -102,8 +102,8 @@ const OTP_CONFIG = {
     MAX_ATTEMPTS: 3,
     RESEND_COOLDOWN_SECONDS: 60,
     SENDER_ID:'8809617611338',
-    API_BASE_URL:'https://xend.positiveapi.com/api/v3',
-    TOKEN:"419|xFSHHY3vGlHDNE3XFijfExhQBpWsC64VsL51BYPO"
+    API_BASE_URL:'https://api.o-sms.com/api/service',
+    TOKEN:"a638e16441b7287d4378f1a80f4f3052e011c4e735fa8f6af22198bfed4b0cee"
 };
 
 // Helper function to generate OTP
@@ -148,7 +148,7 @@ async function sendSMS(phoneNumber, message) {
             apiPhone = '880' + apiPhone;
         }
         
-        const url = `${OTP_CONFIG.API_BASE_URL}/sms/send`;
+        const url = `${OTP_CONFIG.API_BASE_URL}/send-otp`;
         
         // Prepare the request body
         const requestBody = {
