@@ -48,7 +48,7 @@ import { LanguageContext } from "../../context/LanguageContext";
 import telegram_icon from "../../assets/social_icon/telegram.png"
 import whatsapp_icon from "../../assets/social_icon/whatsapp.png"
 
-const APK_FILE = "https://1xwin.live/Bajiman.apk";
+const APK_FILE = "https://1xwin.live/1xwin.apk";
 
 // ── Flag URLs ─────────────────────────────────────────────────────────────────
 const US_FLAG = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Flag_of_the_United_States.svg/1280px-Flag_of_the_United_States.svg.png";
