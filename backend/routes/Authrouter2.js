@@ -93,7 +93,6 @@ const validatePaymentDetails = (paymentMethod, paymentData) => {
   }
   return { isValid: true };
 };
-
 // ==================== OTP & PHONE VERIFICATION ROUTES ====================
 
 // OTP Configuration
@@ -102,9 +101,15 @@ const OTP_CONFIG = {
     CODE_LENGTH: 6,
     MAX_ATTEMPTS: 3,
     RESEND_COOLDOWN_SECONDS: 60,
-    API_BASE_URL: 'https://api.o-sms.com/api/service/send-otp',
-    TOKEN: 'a638e16441b7287d4378f1a80f4f3052e011c4e735fa8f6af22198bfed4b0cee'
+    SENDER_ID:'8809617611338',
+    API_BASE_URL:'https://xend.positiveapi.com/api/v3',
+    TOKEN:"419|xFSHHY3vGlHDNE3XFijfExhQBpWsC64VsL51BYPO"
 };
+
+// Helper function to generate OTP
+function generateOTP(length = OTP_CONFIG.CODE_LENGTH) {
+    return Math.floor(100000 + Math.random() * 900000).toString(); // Always 6 digits
+}
 
 // Helper function to format phone number for Bangladesh
 function formatBangladeshPhone(phone) {
@@ -131,50 +136,49 @@ function formatBangladeshPhone(phone) {
     return null;
 }
 
-// Helper function to send OTP via o-sms API
-// The API generates and sends the OTP itself, and returns the OTP code in the response
-async function sendOTP(phoneNumber) {
+// Helper function to send SMS via Xend API
+// Helper function to send SMS via Xend API
+async function sendSMS(phoneNumber, message) {
     try {
-        // Format phone number for API: needs 880XXXXXXXXXX format (no +)
+        // Format phone number for API (remove + and ensure 880 format)
         let apiPhone = phoneNumber.replace(/\D/g, '');
-        if (!apiPhone.startsWith('880')) {
-            // Remove leading 0 if present
-            if (apiPhone.startsWith('0')) {
-                apiPhone = apiPhone.substring(1);
-            }
+        if (apiPhone.startsWith('880')) {
+            apiPhone = apiPhone;
+        } else if (apiPhone.startsWith('1')) {
             apiPhone = '880' + apiPhone;
         }
+        
+        const url = `${OTP_CONFIG.API_BASE_URL}/sms/send`;
+        
+        // Prepare the request body
+        const requestBody = {
+            recipient: apiPhone,
+            sender_id: OTP_CONFIG.SENDER_ID,
+            message: message
+        };
 
-        console.log(`Sending OTP to ${apiPhone} via o-sms API...`);
+        console.log(`Sending SMS to ${apiPhone}: ${message.substring(0, 20)}...`);
 
-        const response = await axios.post(
-            OTP_CONFIG.API_BASE_URL,
-            { phoneNumber: apiPhone },
-            {
-                headers: {
-                    'Authorization': `Bearer ${OTP_CONFIG.TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
+        // Make POST request with Authorization header
+        const response = await axios.post(url, requestBody, {
+            headers: {
+                'Authorization': `Bearer ${OTP_CONFIG.TOKEN}`,
+                'Content-Type': 'application/json'
             }
-        );
-
-        // API returns { success: true, message: "OTP sent successfully", otp: "628314" }
-        if (response.data && response.data.success === true && response.data.otp) {
-            console.log(`OTP sent successfully to ${apiPhone}`);
-            return {
-                success: true,
-                otp: response.data.otp.toString(), // The OTP returned by the API
-                message: response.data.message
-            };
+        });
+        
+        // Check response status
+        if (response.data && response.data.status === 'success') {
+            return { success: true, data: response.data };
         } else {
-            console.error('OTP API unexpected response:', response.data);
-            return { success: false, error: 'Unexpected API response', data: response.data };
+            console.error('SMS sending failed:', response.data);
+            return { success: false, error: 'SMS sending failed' };
         }
     } catch (error) {
-        console.error('Error sending OTP:', error.response?.data || error.message);
-        return {
-            success: false,
-            error: error.response?.data?.message || error.message
+        console.error('Error sending SMS:', error.response?.data || error.message);
+        return { 
+            success: false, 
+            error: error.response?.data?.message || error.message 
         };
     }
 }
@@ -210,38 +214,63 @@ Authrouter.post("/request-signup-otp", async (req, res) => {
             });
         }
 
-        // Send OTP via API (API generates and sends the OTP, returns OTP in response)
-        const otpResult = await sendOTP(formattedPhone);
-
-        if (!otpResult.success) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP. Please try again."
-            });
-        }
-
-        // Store the OTP returned by the API in memory
+        // Generate OTP
+        const otpCode = generateOTP();
+        
+        // Calculate expiry time
         const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
+
+        // Store OTP in memory (you can also use a separate OTP model in production)
         global.otpStore = global.otpStore || {};
         
         global.otpStore[formattedPhone] = {
-            code: otpResult.otp,   // OTP returned by the API
+            code: otpCode,
             expiresAt: expiresAt,
             attempts: 0,
             purpose: 'signup',
             createdAt: new Date()
         };
 
-        res.json({
-            success: true,
-            message: 'OTP sent successfully. Please check your phone.',
-            data: {
-                expiresAt: expiresAt,
-                phone: formattedPhone,
-                // Only expose OTP in development for testing
-                ...(process.env.NODE_ENV === 'development' && { otp: otpResult.otp })
-            }
-        });
+        // Prepare SMS message in Bengali for better user experience
+        const message = `আপনার ভেরিফিকেশন কোড: ${otpCode}\nএই কোডটি ${OTP_CONFIG.EXPIRY_MINUTES} মিনিটের জন্য বৈধ।\n\nYour verification code is: ${otpCode}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`;
+
+        // Send SMS
+        const smsResult = await sendSMS(formattedPhone, message);
+
+        // For development/testing, always return success with OTP
+        if (process.env.NODE_ENV === 'development') {
+            return res.json({
+                success: true,
+                message: 'OTP sent successfully (Development Mode)',
+                data: {
+                    otp: otpCode, // Only in development
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
+
+        if (smsResult.success) {
+            res.json({
+                success: true,
+                message: 'OTP sent successfully. Please check your phone.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        } else {
+            console.error('SMS sending failed but OTP saved:', smsResult.error);
+            res.json({
+                success: true,
+                message: 'OTP generated but SMS delivery failed. Please try again or use development mode.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone,
+                    devOtp: process.env.NODE_ENV === 'development' ? otpCode : undefined
+                }
+            });
+        }
 
     } catch (error) {
         console.error("Request signup OTP error:", error);
@@ -285,39 +314,59 @@ Authrouter.post("/request-login-otp", async (req, res) => {
             });
         }
 
-        // Send OTP via API
-        const otpResult = await sendOTP(formattedPhone);
-
-        if (!otpResult.success) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP. Please try again."
-            });
-        }
-
+        // Generate OTP
+        const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
-        // Store OTP returned by the API in user record
+        // Store OTP in user record
         user.otp = {
-            code: otpResult.otp,   // OTP returned by the API
+            code: otpCode,
             expiresAt: expiresAt,
             purpose: 'login',
-            verified: false,
-            attempts: 0,
-            createdAt: new Date()
+            verified: false
         };
         
         await user.save();
 
-        res.json({
-            success: true,
-            message: 'OTP sent successfully. Please check your phone.',
-            data: {
-                expiresAt: expiresAt,
-                phone: formattedPhone,
-                ...(process.env.NODE_ENV === 'development' && { otp: otpResult.otp })
-            }
-        });
+        // Prepare SMS message
+        const message = `আপনার লগইন ভেরিফিকেশন কোড: ${otpCode}\nএই কোডটি ${OTP_CONFIG.EXPIRY_MINUTES} মিনিটের জন্য বৈধ।\n\nYour login verification code is: ${otpCode}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`;
+
+        // Send SMS
+        const smsResult = await sendSMS(formattedPhone, message);
+
+        // For development/testing
+        if (process.env.NODE_ENV === 'development') {
+            return res.json({
+                success: true,
+                message: 'OTP sent successfully (Development Mode)',
+                data: {
+                    otp: otpCode,
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
+
+        if (smsResult.success) {
+            res.json({
+                success: true,
+                message: 'OTP sent successfully. Please check your phone.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        } else {
+            console.error('SMS sending failed but OTP saved:', smsResult.error);
+            res.json({
+                success: true,
+                message: 'OTP generated but SMS delivery failed. Please try again or contact support.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
 
     } catch (error) {
         console.error("Request login OTP error:", error);
@@ -399,7 +448,7 @@ Authrouter.post("/verify-signup-otp", async (req, res) => {
         // Clear OTP after successful verification
         delete global.otpStore[formattedPhone];
 
-        // Now create the user
+        // Now create the user (use your existing user creation logic)
         const { username, password, confirmPassword, fullName, email, referralCode, affiliateCode } = userData;
         const ipAddress = req.ip || req.connection.remoteAddress;
         const userAgent = req.get('User-Agent') || 'unknown';
@@ -520,7 +569,7 @@ Authrouter.post("/verify-signup-otp", async (req, res) => {
 
         await newUser.save();
 
-        // Handle affiliate referral
+        // Handle affiliate referral (use your existing affiliate logic)
         let affiliateId = null;
         if (affiliateCode) {
             const affiliate = await Affiliate.findOne({ 
@@ -573,7 +622,7 @@ Authrouter.post("/verify-signup-otp", async (req, res) => {
             }
         }
 
-        // Handle user referral
+        // Handle user referral (use your existing logic)
         if (referredBy) {
             try {
                 await User.findByIdAndUpdate(referredBy, {
@@ -818,36 +867,55 @@ Authrouter.post("/resend-signup-otp", async (req, res) => {
             }
         }
 
-        // Send new OTP via API
-        const otpResult = await sendOTP(formattedPhone);
-
-        if (!otpResult.success) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP. Please try again."
-            });
-        }
-
+        // Generate new OTP
+        const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
-        // Store new OTP from API response
+        // Store new OTP
         global.otpStore[formattedPhone] = {
-            code: otpResult.otp,
+            code: otpCode,
             expiresAt: expiresAt,
             attempts: 0,
             purpose: 'signup',
             createdAt: new Date()
         };
 
-        res.json({
-            success: true,
-            message: 'OTP resent successfully. Please check your phone.',
-            data: {
-                expiresAt: expiresAt,
-                phone: formattedPhone,
-                ...(process.env.NODE_ENV === 'development' && { otp: otpResult.otp })
-            }
-        });
+        // Send SMS
+        const message = `আপনার নতুন ভেরিফিকেশন কোড: ${otpCode}\nএই কোডটি ${OTP_CONFIG.EXPIRY_MINUTES} মিনিটের জন্য বৈধ।\n\nYour new verification code is: ${otpCode}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`;
+        
+        const smsResult = await sendSMS(formattedPhone, message);
+
+        if (process.env.NODE_ENV === 'development') {
+            return res.json({
+                success: true,
+                message: 'OTP resent successfully (Development Mode)',
+                data: {
+                    otp: otpCode,
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
+
+        if (smsResult.success) {
+            res.json({
+                success: true,
+                message: 'OTP resent successfully. Please check your phone.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        } else {
+            res.json({
+                success: true,
+                message: 'OTP regenerated but SMS delivery failed. Please try again.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
 
     } catch (error) {
         console.error("Resend signup OTP error:", error);
@@ -858,7 +926,73 @@ Authrouter.post("/resend-signup-otp", async (req, res) => {
     }
 });
 
-// Request OTP for password reset (forgot-password flow)
+// Request OTP for password reset
+Authrouter.post("/request-password-reset-otp", async (req, res) => {
+    try {
+        const { phone } = req.body;
+
+        if (!phone) {
+            return res.status(400).json({
+                success: false,
+                message: "Phone number is required"
+            });
+        }
+
+        // Format phone number
+        const formattedPhone = formatBangladeshPhone(phone);
+        
+        if (!formattedPhone) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid Bangladeshi phone number"
+            });
+        }
+
+        // Find user by phone
+        const user = await User.findOne({ phone: formattedPhone });
+
+        if (!user) {
+            // Don't reveal that user doesn't exist for security
+            return res.json({
+                success: true,
+                message: "If this phone number is registered, you will receive an OTP"
+            });
+        }
+
+        // Generate OTP
+        const otpCode = generateOTP();
+        const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
+
+        // Store OTP in user record
+        user.otp = {
+            code: otpCode,
+            expiresAt: expiresAt,
+            purpose: 'password_reset',
+            verified: false
+        };
+        
+        await user.save();
+
+        // Send SMS
+        const message = `আপনার পাসওয়ার্ড রিসেট কোড: ${otpCode}\nএই কোডটি ${OTP_CONFIG.EXPIRY_MINUTES} মিনিটের জন্য বৈধ।\n\nYour password reset code is: ${otpCode}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`;
+        
+        await sendSMS(formattedPhone, message);
+
+        res.json({
+            success: true,
+            message: "If this phone number is registered, you will receive an OTP",
+            data: process.env.NODE_ENV === 'development' ? { otp: otpCode } : undefined
+        });
+
+    } catch (error) {
+        console.error("Request password reset OTP error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
+    }
+});
+// Update the request-otp route - replace the existing one
 Authrouter.post("/forgot-password/request-otp", async (req, res) => {
     try {
         const { phone } = req.body;
@@ -891,23 +1025,15 @@ Authrouter.post("/forgot-password/request-otp", async (req, res) => {
             });
         }
 
-        // Send OTP via API
-        const otpResult = await sendOTP(formattedPhone);
-
-        if (!otpResult.success) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP. Please try again."
-            });
-        }
-
+        // Generate OTP
+        const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
-        // Store OTP from API response in user record
+        // Store OTP in the EXISTING otp field (not resetPasswordOTP)
         user.otp = {
-            code: otpResult.otp,
+            code: otpCode,
             expiresAt: expiresAt,
-            purpose: 'password_reset',
+            purpose: 'password_reset', // Change purpose to password_reset
             verified: false,
             attempts: 0,
             createdAt: new Date()
@@ -915,15 +1041,46 @@ Authrouter.post("/forgot-password/request-otp", async (req, res) => {
         
         await user.save();
 
-        res.json({
-            success: true,
-            message: 'OTP sent successfully. Please check your phone.',
-            data: {
-                expiresAt: expiresAt,
-                phone: formattedPhone,
-                ...(process.env.NODE_ENV === 'development' && { otp: otpResult.otp })
-            }
-        });
+        // Prepare SMS message
+        const message = `আপনার পাসওয়ার্ড রিসেট কোড: ${otpCode}\nএই কোডটি ${OTP_CONFIG.EXPIRY_MINUTES} মিনিটের জন্য বৈধ।\n\nYour password reset code is: ${otpCode}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`;
+
+        // Send SMS
+        const smsResult = await sendSMS(formattedPhone, message);
+
+        // For development/testing
+        if (process.env.NODE_ENV === 'development') {
+            return res.json({
+                success: true,
+                message: 'OTP sent successfully (Development Mode)',
+                data: {
+                    otp: otpCode,
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
+
+        if (smsResult.success) {
+            res.json({
+                success: true,
+                message: 'OTP sent successfully. Please check your phone.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        } else {
+            console.error('SMS sending failed but OTP saved:', smsResult.error);
+            res.json({
+                success: true,
+                message: 'OTP generated but SMS delivery failed. Please try again or contact support.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone,
+                    devOtp: process.env.NODE_ENV === 'development' ? otpCode : undefined
+                }
+            });
+        }
 
     } catch (error) {
         console.error("Request password reset OTP error:", error);
@@ -934,7 +1091,7 @@ Authrouter.post("/forgot-password/request-otp", async (req, res) => {
     }
 });
 
-// Verify OTP for password reset
+// Update verify-otp route
 Authrouter.post("/forgot-password/verify-otp", async (req, res) => {
     try {
         const { phone, otp } = req.body;
@@ -978,6 +1135,7 @@ Authrouter.post("/forgot-password/verify-otp", async (req, res) => {
         user.otp.attempts = (user.otp.attempts || 0) + 1;
         
         if (user.otp.attempts > OTP_CONFIG.MAX_ATTEMPTS) {
+            // Clear OTP after too many attempts
             user.otp = undefined;
             await user.save();
             
@@ -1043,7 +1201,7 @@ Authrouter.post("/forgot-password/verify-otp", async (req, res) => {
     }
 });
 
-// Reset password using reset token
+// Update reset password route
 Authrouter.post("/forgot-password/reset", async (req, res) => {
     try {
         const { resetToken, newPassword, confirmPassword } = req.body;
@@ -1113,14 +1271,19 @@ Authrouter.post("/forgot-password/reset", async (req, res) => {
 
         // Update password
         user.password = newPassword;
+        
+        // Clear OTP data
         user.otp = undefined;
+        
+        // Update password change timestamp (add this field to your schema if needed)
         user.passwordChangedAt = new Date();
         
         await user.save();
 
-        // Send confirmation SMS (fire and forget - don't block response)
-        sendOTP(user.phone).catch(err => 
-            console.error('Note: confirmation SMS not sent after password reset:', err)
+        // Send confirmation SMS
+        const message = `আপনার পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে।\n\nYour password has been changed successfully.`;
+        await sendSMS(user.phone, message).catch(err => 
+            console.error('Failed to send password change SMS:', err)
         );
 
         res.json({
@@ -1137,7 +1300,7 @@ Authrouter.post("/forgot-password/reset", async (req, res) => {
     }
 });
 
-// Resend OTP for password reset
+// Update resend OTP route
 Authrouter.post("/forgot-password/resend-otp", async (req, res) => {
     try {
         const { phone } = req.body;
@@ -1181,21 +1344,13 @@ Authrouter.post("/forgot-password/resend-otp", async (req, res) => {
             }
         }
 
-        // Send new OTP via API
-        const otpResult = await sendOTP(formattedPhone);
-
-        if (!otpResult.success) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP. Please try again."
-            });
-        }
-
+        // Generate new OTP
+        const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
-        // Store new OTP from API response
+        // Store new OTP in the existing otp field
         user.otp = {
-            code: otpResult.otp,
+            code: otpCode,
             expiresAt: expiresAt,
             purpose: 'password_reset',
             verified: false,
@@ -1205,15 +1360,42 @@ Authrouter.post("/forgot-password/resend-otp", async (req, res) => {
         
         await user.save();
 
-        res.json({
-            success: true,
-            message: 'OTP resent successfully. Please check your phone.',
-            data: {
-                expiresAt: expiresAt,
-                phone: formattedPhone,
-                ...(process.env.NODE_ENV === 'development' && { otp: otpResult.otp })
-            }
-        });
+        // Send SMS
+        const message = `আপনার নতুন পাসওয়ার্ড রিসেট কোড: ${otpCode}\nএই কোডটি ${OTP_CONFIG.EXPIRY_MINUTES} মিনিটের জন্য বৈধ।\n\nYour new password reset code is: ${otpCode}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`;
+        
+        const smsResult = await sendSMS(formattedPhone, message);
+
+        if (process.env.NODE_ENV === 'development') {
+            return res.json({
+                success: true,
+                message: 'OTP resent successfully (Development Mode)',
+                data: {
+                    otp: otpCode,
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
+
+        if (smsResult.success) {
+            res.json({
+                success: true,
+                message: 'OTP resent successfully. Please check your phone.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        } else {
+            res.json({
+                success: true,
+                message: 'OTP regenerated but SMS delivery failed. Please try again.',
+                data: {
+                    expiresAt: expiresAt,
+                    phone: formattedPhone
+                }
+            });
+        }
 
     } catch (error) {
         console.error("Resend password reset OTP error:", error);
@@ -1223,8 +1405,7 @@ Authrouter.post("/forgot-password/resend-otp", async (req, res) => {
         });
     }
 });
-
-// Verify OTP and reset password (single-step flow)
+// Verify OTP and reset password
 Authrouter.post("/reset-password-with-otp", async (req, res) => {
     try {
         const { phone, otp, newPassword, confirmPassword } = req.body;
@@ -1304,7 +1485,6 @@ Authrouter.post("/reset-password-with-otp", async (req, res) => {
         });
     }
 });
-
 // Affiliate Registration Route
 Authrouter.post("/affiliate/register", async (req, res) => {
   try {
@@ -1318,7 +1498,7 @@ Authrouter.post("/affiliate/register", async (req, res) => {
       website,
       promoMethod,
       paymentMethod,
-      paymentDetails
+      paymentDetails // This should be the specific payment details for the selected method
     } = req.body;
 
     // Validation
@@ -1336,7 +1516,7 @@ Authrouter.post("/affiliate/register", async (req, res) => {
       });
     }
 
-    // Validate payment method and details
+    // Validate payment method and details based on selected method
     if (paymentMethod) {
       switch (paymentMethod) {
         case 'bkash':
@@ -1400,11 +1580,13 @@ Authrouter.post("/affiliate/register", async (req, res) => {
       });
     }
 
-    // Prepare payment details for database
+    // Prepare payment details for database (match the Mongoose schema structure)
     const dbPaymentDetails = {};
     if (paymentMethod && paymentDetails) {
+      // Initialize the payment method object
       dbPaymentDetails[paymentMethod] = paymentDetails;
       
+      // Set default accountType for mobile payment methods if not provided
       if (['bkash', 'nagad', 'rocket'].includes(paymentMethod)) {
         if (!dbPaymentDetails[paymentMethod].accountType) {
           dbPaymentDetails[paymentMethod].accountType = 'personal';
@@ -1485,7 +1667,7 @@ Authrouter.post("/affiliate/login", async (req, res) => {
     if (!affiliate) {
       return res.json({
         success: false,
-        message: "email or password is wrong!"
+        message: "email or password is worng!"
       });
     }
 
@@ -1538,7 +1720,6 @@ Authrouter.post("/affiliate/login", async (req, res) => {
     });
   }
 });
-
 // Master Affiliate Login Route
 Authrouter.post("/master-affiliate/login", async (req, res) => {
   try {
@@ -1551,6 +1732,7 @@ Authrouter.post("/master-affiliate/login", async (req, res) => {
       });
     }
 
+    // Find affiliate with master_affiliate role
     const masterAffiliate = await MasterAffiliate.findOne({ 
       email: email.toLowerCase(),
       role: 'master_affiliate'
@@ -1563,6 +1745,7 @@ Authrouter.post("/master-affiliate/login", async (req, res) => {
       });
     }
 
+    // Check if master affiliate account is active
     if (masterAffiliate.status !== 'active') {
       return res.status(403).json({
         success: false,
@@ -1570,6 +1753,7 @@ Authrouter.post("/master-affiliate/login", async (req, res) => {
       });
     }
 
+    // Verify password
     const isPasswordValid = await masterAffiliate.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -1578,9 +1762,11 @@ Authrouter.post("/master-affiliate/login", async (req, res) => {
       });
     }
 
+    // Update last login
     masterAffiliate.lastLogin = new Date();
     await masterAffiliate.save();
 
+    // Generate master affiliate specific JWT token
     const token = jwt.sign(
       { 
         masterAffiliateId: masterAffiliate._id, 
@@ -1633,7 +1819,6 @@ Authrouter.post("/master-affiliate/login", async (req, res) => {
     });
   }
 });
-
 // Check if affiliate referral code exists
 Authrouter.get("/affiliate/check-referral/:code", async (req, res) => {
   try {
@@ -1860,6 +2045,7 @@ Authrouter.post("/signup", async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent') || 'unknown';
 
+    // Validation checks (unchanged)
     if (!phone || !username || !password || !confirmPassword) {
       return res.status(400).json({ 
         success: false,
@@ -1902,6 +2088,7 @@ Authrouter.post("/signup", async (req, res) => {
       });
     }
 
+    // Handle regular user referral (manual input)
     let referredBy = null;
     if (referralCode) {
       const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
@@ -1914,6 +2101,7 @@ Authrouter.post("/signup", async (req, res) => {
       referredBy = referrer._id;
     }
 
+    // Check if user already exists
     const existingUser = await User.findOne({
       $or: [{ username }, { phone: `+880${phone}` }, { email }]
     });
@@ -1939,6 +2127,7 @@ Authrouter.post("/signup", async (req, res) => {
       }
     }
 
+    // Generate a unique player_id
     let player_id;
     let isUnique = false;
     
@@ -1950,6 +2139,7 @@ Authrouter.post("/signup", async (req, res) => {
       }
     }
 
+    // Create registration source tracking
     const registrationSource = {
       type: referredBy ? 'user_referral' : affiliateCode ? 'affiliate_referral' : 'direct',
       source: 'website',
@@ -1963,6 +2153,7 @@ Authrouter.post("/signup", async (req, res) => {
       timestamp: new Date()
     };
 
+    // Create new user
     const newUser = new User({
       currency: currency || "BDT",
       phone: `+880${phone}`,
@@ -1976,8 +2167,10 @@ Authrouter.post("/signup", async (req, res) => {
 
     await newUser.save();
 
+    // ------------------affiliate-part-----------------------
     let affiliateId = null;
     if (affiliateCode) {
+      // Find the affiliate directly using the affiliate code
       const affiliate = await Affiliate.findOne({ 
         affiliateCode: affiliateCode.toUpperCase(),
         status: 'active' 
@@ -1991,8 +2184,12 @@ Authrouter.post("/signup", async (req, res) => {
       }
 
       affiliateId = affiliate._id;
+      
+      // Ensure CPA rate is a valid number
       const registrationBonus = Number(affiliate.cpaRate) || 0;
       
+      // Clean up any invalid earningsHistory entries first
+      // Remove entries that are missing required fields
       const validEarningsHistory = affiliate.earningsHistory.filter(earning => 
         earning && 
         earning.sourceAmount !== undefined && 
@@ -2001,6 +2198,7 @@ Authrouter.post("/signup", async (req, res) => {
         earning.referredUser !== undefined
       );
       
+      // Create the earning record with all required fields
       const earningRecord = {
         amount: registrationBonus,
         type: 'registration_bonus',
@@ -2016,10 +2214,14 @@ Authrouter.post("/signup", async (req, res) => {
         metadata: { currency: 'BDT' }
       };
       
+      // Add the new valid record
       validEarningsHistory.push(earningRecord);
       
+      // Update the affiliate with clean history and new record
       await Affiliate.findByIdAndUpdate(affiliate._id, {
-        $set: { earningsHistory: validEarningsHistory },
+        $set: {
+          earningsHistory: validEarningsHistory
+        },
         $inc: { 
           totalEarnings: registrationBonus,
           pendingEarnings: registrationBonus,
@@ -2038,18 +2240,21 @@ Authrouter.post("/signup", async (req, res) => {
         runValidators: true,
         new: true 
       });
+
+      console.log(`Affiliate commission recorded: Affiliate ${affiliate._id} earned ${registrationBonus} BDT`);
     }
 
+    // Update regular user referrer's count if applicable
     if (referredBy) {
       try {
         await User.findByIdAndUpdate(referredBy, {
           $inc: { 
             referralCount: 1,
-            referralEarnings: 50
+            referralEarnings: 50 // Example: 50 taka bonus for regular referral
           },
           $push: {
             referralUsers: {
-              username: newUser.username,
+              username:newUser.username,
               user: newUser._id,
               joinedAt: new Date(),
               earnedAmount: 50
@@ -2057,20 +2262,26 @@ Authrouter.post("/signup", async (req, res) => {
           }
         });
 
+        // Add bonus to referrer's account
         await User.findByIdAndUpdate(referredBy, {
           $inc: { balance: 50 }
         });
 
+        console.log(`User referral recorded: ${referredBy} earned 50 taka for referral`);
+
       } catch (referralError) {
         console.error('Error recording user referral:', referralError);
+        // Don't fail the user registration if referral tracking fails
       }
     }
 
+    // Update login information for the new user
     newUser.login_count = 1;
     newUser.last_login = new Date();
     newUser.first_login = false;
     await newUser.save();
 
+    // Create a login log entry
     const { deviceType, browser, os } = getDeviceInfo(userAgent);
     
     const loginLog = new LoginLog({
@@ -2087,12 +2298,14 @@ Authrouter.post("/signup", async (req, res) => {
     
     await loginLog.save();
 
+    // Generate JWT token
     const token = jwt.sign(
       { userId: newUser._id, username: newUser.username },
       JWT_SECRET,
       { expiresIn: "30d" }
     );
 
+    // Return success response with token
     res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -2122,7 +2335,6 @@ Authrouter.post("/signup", async (req, res) => {
     });
   }
 });
-
 // Get referral statistics
 Authrouter.get("/referral-stats", async (req, res) => {
   try {
@@ -2218,13 +2430,14 @@ Authrouter.get("/affiliate-stats", async (req, res) => {
   }
 });
 
-// Login route
+// Login route - Complete version
 Authrouter.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent') || 'unknown';
 
+    // Validation
     if (!username || !password) {
       return res.status(400).json({ 
         success: false,
@@ -2232,11 +2445,14 @@ Authrouter.post("/login", async (req, res) => {
       });
     }
 
+    // Find user by username and explicitly select password field
     const user = await User.findOne({ username }).select("+password");
     
     const { deviceType, browser, os } = getDeviceInfo(userAgent);
 
+    // Check if user exists
     if (!user) {
+      // Create failed login log without userId
       const loginLog = new LoginLog({
         userId: null,
         username,
@@ -2257,7 +2473,9 @@ Authrouter.post("/login", async (req, res) => {
       });
     }
 
+    // Check if user is active
     if (user.status !== 'active') {
+      // Create failed login log
       const loginLog = new LoginLog({
         userId: user._id,
         username,
@@ -2278,9 +2496,11 @@ Authrouter.post("/login", async (req, res) => {
       });
     }
 
+    // Verify password using the method from your User model
     const isPasswordValid = await user.verifyPassword(password);
     
     if (!isPasswordValid) {
+      // Create failed login log
       const loginLog = new LoginLog({
         userId: user._id,
         username,
@@ -2301,10 +2521,12 @@ Authrouter.post("/login", async (req, res) => {
       });
     }
 
+    // Update user login information
     user.login_count = (user.login_count || 0) + 1;
     user.last_login = new Date();
     user.first_login = false;
     
+    // Add login history
     if (!user.loginHistory) {
       user.loginHistory = [];
     }
@@ -2313,16 +2535,18 @@ Authrouter.post("/login", async (req, res) => {
       ipAddress,
       device: deviceType,
       userAgent,
-      location: 'Unknown',
+      location: 'Unknown', // You can add IP geolocation later
       timestamp: new Date()
     });
     
+    // Keep only last 10 login history entries
     if (user.loginHistory.length > 10) {
       user.loginHistory = user.loginHistory.slice(-10);
     }
     
     await user.save();
 
+    // Create successful login log
     const loginLog = new LoginLog({
       userId: user._id,
       username,
@@ -2337,6 +2561,7 @@ Authrouter.post("/login", async (req, res) => {
     
     await loginLog.save();
 
+    // Generate JWT token
     const token = jwt.sign(
       { 
         userId: user._id, 
@@ -2347,6 +2572,7 @@ Authrouter.post("/login", async (req, res) => {
       { expiresIn: "30d" }
     );
 
+    // Return success response with user data (excluding sensitive information)
     res.json({
       success: true,
       message: "Login successful",
@@ -2376,23 +2602,28 @@ Authrouter.post("/login", async (req, res) => {
         language: user.language,
         themePreference: user.themePreference,
         avatar: user.avatar,
+        // Virtual fields
         accountAgeInDays: user.accountAgeInDays,
         isNewUser: user.isNewUser,
         availableBalance: user.availableBalance,
         withdrawableAmount: user.withdrawableAmount,
         wageringStatus: user.wageringStatus,
         isAffiliateReferred: user.isAffiliateReferred,
+        // Bonus offers if applicable
         availableBonuses: user.getAvailableBonusOffers ? user.getAvailableBonusOffers() : []
       }
     });
 
   } catch (error) {
     console.error("Login error:", error);
+    
+    // Log the error but don't expose internal details
     res.status(500).json({ 
       success: false,
       error: "Internal server error during login" 
     });
   }
 });
+
 
 module.exports = Authrouter;
