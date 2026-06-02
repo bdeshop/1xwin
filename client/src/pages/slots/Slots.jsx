@@ -6,9 +6,10 @@ import Footer from '../../components/footer/Footer';
 import { NavLink, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import logo from "../../assets/logo.png";
-import { IoSearchSharp, IoChevronDown, IoChevronUp, IoClose } from "react-icons/io5";
+import { IoSearchSharp, IoChevronDown, IoChevronUp, IoClose, IoHeart, IoHeartOutline } from "react-icons/io5";
 import { MdFilterList, MdSort } from 'react-icons/md';
 import { RiArrowLeftRightLine } from "react-icons/ri";
+import favourite_img from "../../assets/favorite.png";
 
 // Create Auth Context
 const AuthContext = createContext();
@@ -92,6 +93,168 @@ const SkeletonGameCard = () => {
   );
 };
 
+// Favorites Dropdown Component
+const FavoritesDropdown = ({ user, favoritesList, onGameClick, onRemoveFavorite, isLoading }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!user) {
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-center cursor-pointer text-white px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors hover:bg-[#2a2a2a]"
+          title="Login to view favorites"
+        >
+          <img src={favourite_img} alt="Favorites" className="w-5 h-5" />
+        </button>
+        {isOpen && (
+          <div className="absolute top-full right-0 bg-[#222] border border-[#333] rounded-lg shadow-lg z-30 mt-1 overflow-hidden w-64">
+            <div className="px-4 py-6 text-center">
+              <img src={favourite_img} alt="Favorites" className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-gray-400 text-sm">Login to view your favorites</p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => window.location.href = '/login'}
+                  className="flex-1 px-3 py-2 bg-theme_color text-white text-sm rounded-md hover:bg-theme_color/90 transition-colors"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => window.location.href = '/register'}
+                  className="flex-1 px-3 py-2 bg-[#333] text-white text-sm rounded-md hover:bg-[#444] transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const favoriteGames = favoritesList.slice(0, 10);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-center cursor-pointer text-white px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors hover:bg-[#2a2a2a] relative"
+        title="My Favorites"
+      >
+        <img src={favourite_img} alt="Favorites" className="w-5 h-5" />
+        {favoritesList.length > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+            {favoritesList.length > 9 ? '9+' : favoritesList.length}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full right-0 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-30 mt-1 overflow-hidden w-80 sm:w-96">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#333] bg-[#222]">
+            <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+              <img src={favourite_img} alt="Favorites" className="w-4 h-4" />
+              My Favorites ({favoritesList.length})
+            </h3>
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                window.location.href = '/favourites';
+              }}
+              className="text-xs text-theme_color hover:underline"
+            >
+              View All
+            </button>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-4 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-12 h-12 bg-[#333] rounded"></div>
+                    <div className="flex-1">
+                      <div className="h-3 bg-[#333] rounded w-24 mb-2"></div>
+                      <div className="h-2 bg-[#333] rounded w-16"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : favoritesList.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <img src={favourite_img} alt="No favorites" className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-gray-400 text-sm">No favorite games yet</p>
+                <p className="text-gray-500 text-xs mt-1">Click the heart icon on any game to add it here</p>
+              </div>
+            ) : (
+              favoriteGames.map((game) => (
+                <div
+                  key={game.id}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a2a] cursor-pointer transition-colors border-b border-[#333] last:border-b-0"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onGameClick(game);
+                  }}
+                >
+                  <div className="w-12 h-12 rounded overflow-hidden bg-[#222] flex-shrink-0">
+                    <img
+                      src={game.portraitImage || game.image || logo}
+                      alt={game.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = logo; }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{game.name}</p>
+                    <p className="text-gray-400 text-xs">{game.provider}</p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFavorite(game.gameId, e);
+                    }}
+                    className="p-1.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                    title="Remove from favorites"
+                  >
+                    <IoHeart className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {favoritesList.length > 10 && (
+            <div className="px-4 py-2 border-t border-[#333] bg-[#222]">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  window.location.href = '/favourite';
+                }}
+                className="w-full text-center text-theme_color text-sm py-2 hover:underline"
+              >
+                and {favoritesList.length - 10} more...
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Main Slots Component
 const SlotsContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -124,6 +287,13 @@ const SlotsContent = () => {
   const [showSpecialFeatureDropdown, setShowSpecialFeatureDropdown] = useState(true);
   const [dynamicLogo, setDynamicLogo] = useState(logo);
   
+  // Favorite System States
+  const [favorites, setFavorites] = useState(new Set());
+  const [favoritesList, setFavoritesList] = useState([]);
+  const [favoriteCounts, setFavoriteCounts] = useState({});
+  const [isAddingFavorite, setIsAddingFavorite] = useState(false);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+  
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -139,22 +309,18 @@ const SlotsContent = () => {
   const getImageUrl = (game) => {
     if (!game) return logo;
     
-    // Check for different possible image fields
     const imageField = game.portraitImage || game.image || game.coverImage || game.defaultImage;
     
     if (!imageField) return logo;
     
-    // If it's already a full URL
     if (imageField.startsWith('http://') || imageField.startsWith('https://')) {
       return imageField;
     }
     
-    // If it's a local path
     if (imageField.startsWith('/')) {
       return `${base_url}${imageField}`;
     }
     
-    // Otherwise, assume it's a relative path
     return `${base_url}/${imageField}`;
   };
 
@@ -171,6 +337,185 @@ const SlotsContent = () => {
     } catch (error) {
       console.error("Error fetching branding data:", error);
       setDynamicLogo(logo);
+    }
+  };
+
+  // ==================== FAVORITE SYSTEM FUNCTIONS ====================
+  
+  // Fetch user's favorites with full game details
+  const fetchUserFavorites = async () => {
+    if (!user) return;
+    
+    setIsLoadingFavorites(true);
+    
+    try {
+      const token = localStorage.getItem('usertoken');
+      const response = await axios.get(`${base_url}/api/user/favorites`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: { limit: 50, sortBy: 'createdAt', sortOrder: 'desc' }
+      });
+      
+      if (response.data.success) {
+        const favoriteIds = new Set(response.data.data.favorites.map(fav => fav.gameId));
+        setFavorites(favoriteIds);
+        setFavoritesList(response.data.data.favorites);
+        
+        // Fetch favorite counts for games
+        const counts = {};
+        for (const game of games) {
+          try {
+            const checkResponse = await axios.get(`${base_url}/api/user/favorites/check/${game._id}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (checkResponse.data.success) {
+              counts[game._id] = checkResponse.data.data.favoriteCount;
+            }
+          } catch (err) {
+            console.error("Error fetching favorite count:", err);
+          }
+        }
+        setFavoriteCounts(counts);
+      }
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+    } finally {
+      setIsLoadingFavorites(false);
+    }
+  };
+  
+  // Add game to favorites
+  const addToFavorites = async (gameId, event) => {
+    event.stopPropagation();
+    
+    if (!user) {
+      setShowLoginPopup(true);
+      return;
+    }
+    
+    setIsAddingFavorite(true);
+    
+    try {
+      const token = localStorage.getItem('usertoken');
+      const response = await axios.post(`${base_url}/api/user/favorites/${gameId}`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        setFavorites(prev => new Set([...prev, gameId]));
+        
+        // Add to favorites list
+        const game = games.find(g => g._id === gameId);
+        if (game) {
+          setFavoritesList(prev => [{
+            id: response.data.data.id,
+            gameId: gameId,
+            name: game.name,
+            provider: game.provider,
+            portraitImage: game.portraitImage,
+            image: game.image,
+            category: game.category
+          }, ...prev]);
+        }
+        
+        toast.success("Added to favorites!");
+        
+        setFavoriteCounts(prev => ({
+          ...prev,
+          [gameId]: (prev[gameId] || 0) + 1
+        }));
+      }
+    } catch (error) {
+      console.error("Error adding to favorites:", error);
+      if (error.response?.data?.message === "Game already in favorites") {
+        toast.error("Game already in favorites");
+      } else {
+        toast.error("Failed to add to favorites");
+      }
+    } finally {
+      setIsAddingFavorite(false);
+    }
+  };
+  
+  // Remove game from favorites
+  const removeFromFavorites = async (gameId, event) => {
+    if (event) event.stopPropagation();
+    
+    if (!user) {
+      toast.error("Please login to manage favorites");
+      setShowLoginPopup(true);
+      return;
+    }
+    
+    setIsAddingFavorite(true);
+    
+    try {
+      const token = localStorage.getItem('usertoken');
+      const response = await axios.delete(`${base_url}/api/user/favorites/${gameId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        setFavorites(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(gameId);
+          return newSet;
+        });
+        
+        // Remove from favorites list
+        setFavoritesList(prev => prev.filter(fav => fav.gameId !== gameId));
+        
+        toast.success("Removed from favorites!");
+        
+        setFavoriteCounts(prev => ({
+          ...prev,
+          [gameId]: Math.max(0, (prev[gameId] || 1) - 1)
+        }));
+      }
+    } catch (error) {
+      console.error("Error removing from favorites:", error);
+      toast.error("Failed to remove from favorites");
+    } finally {
+      setIsAddingFavorite(false);
+    }
+  };
+  
+  // Toggle favorite
+  const toggleFavorite = (gameId, event, isFavorited) => {
+    if (isFavorited) {
+      removeFromFavorites(gameId, event);
+    } else {
+      addToFavorites(gameId, event);
+    }
+  };
+  
+  // Record that user played a favorite game
+  const recordFavoritePlay = async (gameId) => {
+    if (!user) return;
+    
+    try {
+      const token = localStorage.getItem('usertoken');
+      await axios.post(`${base_url}/api/user/favorites/${gameId}/play`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error("Error recording favorite play:", error);
+    }
+  };
+  
+  // Handle game click from favorites dropdown
+  const handleFavoriteGameClick = (game) => {
+    if (!user) {
+      setShowLoginPopup(true);
+      return;
+    }
+    
+    // Find the full game object
+    const fullGame = games.find(g => g._id === game.gameId);
+    if (fullGame) {
+      handleOpenGame(fullGame);
+    } else {
+      // If game not found in current list, navigate using gameId
+      navigate(`/game/${game.gameApiID || game.gameId}?provider=${encodeURIComponent(game.provider || '')}&category=slots`);
     }
   };
 
@@ -194,6 +539,13 @@ const SlotsContent = () => {
       handleCategoryFilter();
     }
   }, [selectedCategory, allGames, categories]);
+
+  // Fetch favorites when user changes and games are loaded
+  useEffect(() => {
+    if (user && games.length > 0) {
+      fetchUserFavorites();
+    }
+  }, [user, games.length]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -261,11 +613,9 @@ const SlotsContent = () => {
     let filtered = allGames;
     if (selectedCategory !== 'all') {
       filtered = allGames.filter(game => {
-        // Check if game.category is an array
         if (Array.isArray(game.category)) {
           return game.category.some(cat => cat.toLowerCase() === selectedCategory);
         }
-        // If it's a string, compare directly
         return game.category?.toLowerCase() === selectedCategory;
       });
     }
@@ -452,20 +802,16 @@ const SlotsContent = () => {
     setSelectedGame(game);
     console.log("Game clicked:", game);
     
-    // Check if user is logged in
     if (!user) {
       setShowLoginPopup(true);
       return;
     }
-    // If user is logged in, navigate directly to game
     handleOpenGame(game);
   };
 
-  // Handle opening the game
   const handleOpenGame = async (game) => {
     console.log("Attempting to open game:", game);
 
-    // Check if user is logged in
     if (!user) {
       toast.error("Please login to play games");
       setShowLoginPopup(true);
@@ -489,9 +835,11 @@ const SlotsContent = () => {
         throw new Error(`Failed to fetch game with ID ${gameId}`);
       }
 
-      console.log("Game data:", gameData?.data?.gameApiID);
+      // Record play in favorites if the game is favorited
+      if (favorites.has(game._id)) {
+        await recordFavoritePlay(game._id);
+      }
 
-      // Navigate with provider and category as query parameters
       navigate(`/game/${gameData?.data?.gameApiID}?provider=${encodeURIComponent(game.provider || '')}&category=${encodeURIComponent(Array.isArray(game.category) ? game.category[0] : game.category || 'slots')}`);
     } catch (err) {
       console.error("Error:", err);
@@ -546,7 +894,7 @@ const SlotsContent = () => {
                 </button>
                 
                 {showCategoryDropdown && (
-                  <div className="absolute top-full left-0 text-xs sm:text-sm right-0 bg-[#222] border border-[#333] rounded-lg shadow-lg z-20 mt-1 overflow-hidden">
+                  <div className="absolute top-full left-0 text-xs sm:text-sm right-0 bg-[#222] border border-[#333] rounded-lg shadow-lg z-[1000] mt-1 overflow-hidden">
                     {categories.map(category => (
                       <div 
                         key={category.value}
@@ -572,6 +920,15 @@ const SlotsContent = () => {
               </div>
               
               <div className="flex gap-2 w-full sm:w-auto justify-end">
+                {/* Favorites Dropdown */}
+                <FavoritesDropdown 
+                  user={user}
+                  favoritesList={favoritesList}
+                  onGameClick={handleFavoriteGameClick}
+                  onRemoveFavorite={removeFromFavorites}
+                  isLoading={isLoadingFavorites}
+                />
+                
                 <div className="relative">
                   <button 
                     className="flex items-center justify-center cursor-pointer text-white px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors"
@@ -670,6 +1027,8 @@ const SlotsContent = () => {
                   <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
                     {visibleGames.map(game => {
                       const imageUrl = getImageUrl(game);
+                      const isFavorited = favorites.has(game._id);
+                      const favoriteCount = favoriteCounts[game._id] || 0;
                       
                       return (
                         <div 
@@ -689,12 +1048,39 @@ const SlotsContent = () => {
                               }}
                             />
 
-                            {/* Glow Sweep Animation — same as Category component */}
+                            {/* Glow Sweep Animation */}
                             <div className="slots-glow-sweep"></div>
 
                             {game.featured && (
                               <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-md z-10">
                                 NEW
+                              </div>
+                            )}
+                            
+                            {/* Favorite Button */}
+                            <button
+                              onClick={(e) => toggleFavorite(game._id, e, isFavorited)}
+                              disabled={isAddingFavorite}
+                              className={`absolute top-2 left-2 z-20 p-2 rounded-full transition-all duration-200 ${
+                                isFavorited 
+                                  ? 'bg-red-500 text-white hover:bg-red-600' 
+                                  : 'bg-black/50 text-gray-300 hover:text-red-500 hover:bg-black/70'
+                              } ${isAddingFavorite ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {isFavorited ? (
+                                <IoHeart className="w-3 h-3 sm:w-4 sm:h-4" />
+                              ) : (
+                                <IoHeartOutline className="w-3 h-3 sm:w-4 sm:h-4" />
+                              )}
+                            </button>
+                            
+                            {/* Favorite Count Badge */}
+                            {favoriteCount > 0 && (
+                              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm rounded-full px-2 py-0.5 z-10">
+                                <span className="text-white text-[10px] sm:text-xs flex items-center gap-1">
+                                  <IoHeart className="w-2.5 h-2.5 text-red-400" />
+                                  {favoriteCount}
+                                </span>
                               </div>
                             )}
                             
@@ -1035,7 +1421,7 @@ const SlotsContent = () => {
       )}
 
       <style jsx>{`
-        /* ── Portrait-ratio container (matches Category component) ── */
+        /* ── Portrait-ratio container ── */
         .slots-game-image-container {
           position: relative;
           width: 100%;
@@ -1054,7 +1440,7 @@ const SlotsContent = () => {
           object-fit: cover;
         }
 
-        /* ── Glow Sweep — identical to Category component ── */
+        /* ── Glow Sweep Animation ── */
         .slots-glow-sweep {
           position: absolute;
           top: 0;
@@ -1070,7 +1456,6 @@ const SlotsContent = () => {
             transparent 100%
           );
           transform: skewX(-25deg);
-          /* 5s cycle: ~3s sweep + 2s hidden pause */
           animation: slotsSweepWide 5s ease-in-out infinite;
           pointer-events: none;
           z-index: 1;
@@ -1084,7 +1469,7 @@ const SlotsContent = () => {
           100% { left: 150%; opacity: 0; }
         }
 
-        /* Stagger the sweep per card so they don't all flash at once */
+        /* Stagger the sweep per card */
         .slots-game-image-container:nth-child(2n)   .slots-glow-sweep { animation-delay: 0.7s; }
         .slots-game-image-container:nth-child(3n)   .slots-glow-sweep { animation-delay: 1.4s; }
         .slots-game-image-container:nth-child(4n)   .slots-glow-sweep { animation-delay: 2.1s; }

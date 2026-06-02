@@ -17,7 +17,8 @@ import {
   FaTelegram,
   FaInstagram,
   FaTwitter,
-  FaCoins
+  FaCoins,
+  FaHome,
 } from "react-icons/fa";
 import { NavLink, useNavigate } from "react-router-dom";
 import { MdSupportAgent } from "react-icons/md";
@@ -47,8 +48,8 @@ import { useAuth } from "../../App";
 import { LanguageContext } from "../../context/LanguageContext";
 import telegram_icon from "../../assets/social_icon/telegram.png"
 import whatsapp_icon from "../../assets/social_icon/whatsapp.png"
-
-const APK_FILE = "https://1xwin.live/1xwin.apk";
+import favourite_img from "../../assets/favorite.png"
+const APK_FILE = "https://bajiman.com/Bajiman.apk";
 
 // ── Flag URLs ─────────────────────────────────────────────────────────────────
 const US_FLAG = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Flag_of_the_United_States.svg/1280px-Flag_of_the_United_States.svg.png";
@@ -65,7 +66,6 @@ const LanguageToggle = ({ isBangla, onToggle, compact = false }) => {
         userSelect: "none",
       }}
     >
-      {/* EN label (only shown when not compact) */}
       {!compact && (
         <span
           style={{
@@ -82,7 +82,6 @@ const LanguageToggle = ({ isBangla, onToggle, compact = false }) => {
         </span>
       )}
 
-      {/* Toggle pill */}
       <button
         onClick={onToggle}
         aria-label={isBangla ? "Switch to English" : "Switch to Bangla"}
@@ -101,7 +100,6 @@ const LanguageToggle = ({ isBangla, onToggle, compact = false }) => {
           transition: "background 0.25s",
         }}
       >
-        {/* Sliding flag circle */}
         <span
           style={{
             position: "absolute",
@@ -132,7 +130,6 @@ const LanguageToggle = ({ isBangla, onToggle, compact = false }) => {
         </span>
       </button>
 
-      {/* BN label (only shown when not compact) */}
       {!compact && (
         <span
           style={{
@@ -156,9 +153,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
   const API_BASE_URL = import.meta.env.VITE_API_KEY_Base_URL;
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
 
-  // ── Translation hook ────────────────────────────────────────────────────────
   const { t, language, changeLanguage } = useContext(LanguageContext);
-  // ────────────────────────────────────────────────────────────────────────────
 
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeSubMenu, setActiveSubMenu] = useState(null);
@@ -181,13 +176,11 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
   const [showMobileAppBanner, setShowMobileAppBanner] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
+  const [isRefreshingCoinBalance, setIsRefreshingCoinBalance] = useState(false);
 
-  // Social links states
   const [socialLinks, setSocialLinks] = useState([]);
   const [loadingSocialLinks, setLoadingSocialLinks] = useState(false);
 
-  // ── Language state — now derived from LanguageContext ────────────────────────
-  // isBangla is true when the context language code is "bn"
   const isBangla = language.code === "bn";
 
   const handleLanguageToggle = () => {
@@ -205,11 +198,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
         };
 
     changeLanguage(nextLang);
-
-    // Keep localStorage string key "language" = "bn"/"en" for backward-compat
     localStorage.setItem("language", next ? "bn" : "en");
-
-    // Notify other components
     window.dispatchEvent(
       new StorageEvent("storage", {
         key: "language",
@@ -217,13 +206,18 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
       })
     );
   };
-  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── Translate category name using translation keys ──
+  const translateCategoryName = (name) => {
+    if (!name) return name;
+    const key = name.toLowerCase();
+    return t[key] || name; // fallback to original name if no translation found
+  };
 
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const popupRef = useRef(null);
 
-  // Default categories with provided images - Exclusive always first
   const defaultCategories = [
     {
       name: "Exclusive",
@@ -272,7 +266,6 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
     }
   ];
 
-  // Function to sort categories with Exclusive always first
   const sortCategoriesWithExclusiveFirst = (categories) => {
     if (!categories || categories.length === 0) return defaultCategories;
 
@@ -289,11 +282,10 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
     return [exclusiveCategory, ...otherCategories];
   };
 
-  // Default social links fallback
   const getDefaultSocialLinks = () => [
     {
       platform: "whatsapp",
-      url: "https://wa.me/+4407386588951",
+      url: "https://wa.me/+447311133922",
       title: t.whatsapp,
       icon: <FaWhatsapp className="w-4 h-4 mr-2" />
     },
@@ -311,12 +303,10 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
     }
   ];
 
-  // Check if device is mobile
   const isMobileDevice = () => {
     return window.innerWidth < 768;
   };
 
-  // Check banner visibility based on localStorage
   const checkBannerVisibility = () => {
     if (!isMobileDevice()) return false;
 
@@ -338,6 +328,17 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
     }
 
     return true;
+  };
+
+  // Handle home click - reload and navigate to home page
+  const handleHomeClick = () => {
+    setSidebarOpen(false);
+    // Navigate to home page
+    navigate("/");
+    // Small delay to ensure navigation completes before reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   useEffect(() => {
@@ -467,7 +468,21 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
       setIsLoadingCategories(true);
       const response = await axios.get(`${API_BASE_URL}/api/categories`);
       if (response.data && response.data.data) {
-        const sortedCategories = sortCategoriesWithExclusiveFirst(response.data.data);
+        const categoriesWithImages = response.data.data.map(cat => {
+          if (cat.image && cat.image.startsWith('http')) {
+            return cat;
+          }
+          if (cat.image && !cat.image.startsWith('http')) {
+            const cleanPath = cat.image.startsWith('/') ? cat.image.substring(1) : cat.image;
+            return { ...cat, image: `${API_BASE_URL}/${cleanPath}` };
+          }
+          const defaultCat = defaultCategories.find(dc => dc.name.toLowerCase() === cat.name.toLowerCase());
+          if (defaultCat) {
+            return { ...cat, image: defaultCat.image };
+          }
+          return cat;
+        });
+        const sortedCategories = sortCategoriesWithExclusiveFirst(categoriesWithImages);
         setCategories(sortedCategories);
         localStorage.setItem("categories", JSON.stringify(sortedCategories));
       }
@@ -637,6 +652,26 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
     }
   };
 
+  const refreshCoinBalance = async () => {
+    if (!isLoggedIn) return;
+
+    try {
+      setIsRefreshingCoinBalance(true);
+      const token = localStorage.getItem("usertoken");
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      const response = await axios.get(`${API_BASE_URL}/api/user/my-information`);
+      if (response.data.success) {
+        setUserData(response.data.data);
+        localStorage.setItem("user", JSON.stringify(response.data.data));
+      }
+    } catch (error) {
+      console.error("Error refreshing coin balance:", error);
+    } finally {
+      setIsRefreshingCoinBalance(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("usertoken");
     localStorage.removeItem("user");
@@ -702,35 +737,11 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
       icon: <FiUsers />,
       path: "/referral-program/details",
     },
-    // NEW: Bonuses menu item
     {
       id: "bonuses",
       label: t.bonuses || "Bonuses",
       icon: <FaGift />,
       path: "/member/bonuses",
-    },
-  ];
-
-  const secondaryMenuItems = [
-    {
-      title: t.promotions,
-      icon: <FaGift className="w-5 h-5 min-w-[20px]" />,
-      subItems: ["Welcome Bonus", "Reload Bonus", "Cashback"],
-    },
-    {
-      title: t.vipClub,
-      icon: <FaCrown className="w-5 h-5 min-w-[20px]" />,
-      subItems: ["VIP Levels", "Exclusive Rewards", "Personal Manager"],
-    },
-    {
-      title: t.referralProgram,
-      icon: <FaUserFriends className="w-5 h-5 min-w-[20px]" />,
-      subItems: ["Invite Friends", "Earn Commission", "Bonus Terms"],
-    },
-    {
-      title: t.affiliate,
-      icon: <FaHandshake className="w-5 h-5 min-w-[20px]" />,
-      subItems: ["Join Program", "Marketing Tools", "Commission Rates"],
     },
   ];
 
@@ -751,7 +762,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
       title: t.affiliate,
       icon: <FaHandshake className="w-5 h-5 min-w-[20px]" />,
       subItems: [],
-      onClick: () => { window.location.href = "https://affiliate.1xwin.live" },
+      onClick: () => { window.location.href = "https://m-affiliate.bajiman.com" },
     },
     {
       title: t.brandAmbassadors,
@@ -776,6 +787,12 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
       icon: <FaBook className="w-5 h-5 min-w-[20px]" />,
       subItems: [],
       path: "/coming-soon?title=New Member Guide"
+    },
+    {
+      title: t.bjForum,
+      icon: <FaComments className="w-5 h-5 min-w-[20px]" />,
+      subItems: [],
+      path: "/coming-soon?title=BJ Forum"
     },
   ];
 
@@ -825,27 +842,90 @@ export const Header = ({ sidebarOpen, setSidebarOpen }) => {
     const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
     return `${API_BASE_URL}/${cleanPath}`;
   };
-const [isRefreshingCoinBalance, setIsRefreshingCoinBalance] = useState(false);
 
-const refreshCoinBalance = async () => {
-  if (!isLoggedIn) return;
-  
-  try {
-    setIsRefreshingCoinBalance(true);
-    const token = localStorage.getItem("usertoken");
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  const getCategoryImage = (category) => {
+    if (!category) return '';
     
-    const response = await axios.get(`${API_BASE_URL}/api/user/my-information`);
-    if (response.data.success) {
-      setUserData(response.data.data);
-      localStorage.setItem("user", JSON.stringify(response.data.data));
+    // For Favorites category, use the static favourite_img
+    if (category.name === "Favorites") {
+      return favourite_img;
     }
-  } catch (error) {
-    console.error("Error refreshing coin balance:", error);
-  } finally {
-    setIsRefreshingCoinBalance(false);
-  }
-};
+    
+    if (category.image) {
+      if (category.image.startsWith('http')) {
+        return category.image;
+      }
+      const cleanPath = category.image.startsWith('/') ? category.image.substring(1) : category.image;
+      return `${API_BASE_URL}/${cleanPath}`;
+    }
+    
+    const defaultCat = defaultCategories.find(dc => dc.name.toLowerCase() === category.name.toLowerCase());
+    if (defaultCat) {
+      return defaultCat.image;
+    }
+    
+    return "https://img.b112j.com/bj/h5/assets/v3/images/icon-set/menu-type/inactive/icon-exclusive.png?v=1767857219215&source=drccdnsrc";
+  };
+
+  // Static Favorites category - only shown when logged in
+  const renderFavoritesCategory = () => {
+    if (!isLoggedIn) return null;
+    
+    return (
+      <div key="favorites">
+        <div
+          className="flex items-center p-3 rounded cursor-pointer hover:text-gray-500 text-gray-400 transition-colors duration-200"
+          onClick={() => {
+            navigate("/favourites");
+            setSidebarOpen(false);
+            setActiveMenu(null);
+          }}
+        >
+          <img
+            src={favourite_img}
+            alt="Favorites"
+            className="w-5 h-5 min-w-[20px] object-contain"
+          />
+          <div className="flex items-center ml-3 w-full">
+            <span className="text-sm flex-grow whitespace-nowrap">
+              Favorites
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Mobile Sidebar with Home and Live Chat
+  const renderMobileSidebarHeader = () => {
+    if (!sidebarOpen) return null;
+    
+    return (
+      <div className="w-full flex justify-between items-center px-4 pt-4 pb-3 md:sticky top-0 left-0 bg-[#1A1A1A]">
+        {/* Home Icon - Left side */}
+        <button
+          onClick={handleHomeClick}
+          className="bg-[#222424] p-2.5 rounded-[3px] flex items-center justify-center cursor-pointer hover:bg-[#2a2a2a] transition"
+        >
+          <FaHome className="text-white text-[18px]" />
+        </button>
+        
+        {/* Live Chat Link */}
+        <a
+          href="https://wa.me/+447311133922"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 ml-3"
+        >
+          <span className="bg-[#222424] text-[16px] px-2 py-2.5 rounded-[3px] text-center flex justify-center items-center gap-3 cursor-pointer hover:bg-[#2a2a2a] transition">
+            <MdSupportAgent className="text-white text-[20px]" />
+            <span className="text-[13px]">{t.liveChat}</span>
+          </span>
+        </a>
+      </div>
+    );
+  };
+
   return (
     <>
       <Toaster />
@@ -904,7 +984,6 @@ const refreshCoinBalance = async () => {
                       <div className="text-xs text-gray-500 mt-1">
                         {t.playerId}: {userData?.player_id || "N/A"}
                       </div>
-                      {/* Coin Balance in Profile Dropdown */}
                       <div className="flex items-center gap-1 mt-2 text-xs text-yellow-400">
                         <FaCoins className="w-3 h-3" />
                         <span>Coins: {userData?.coinBalance || 0}</span>
@@ -945,36 +1024,31 @@ const refreshCoinBalance = async () => {
           )}
         </div>
         <div className="flex items-center space-x-3">
-
-          {/* ── Language Toggle — desktop only ────────────────────────────── */}
           <div className="hidden md:flex items-center">
             <LanguageToggle isBangla={isBangla} onToggle={handleLanguageToggle} />
           </div>
-          {/* ──────────────────────────────────────────────────────────────── */}
 
           {isLoggedIn ? (
             <>
-              {/* Desktop View */}
               <div className="hidden md:flex items-center rounded overflow-hidden gap-2">
-                {/* Main Balance Box */}
                 <div className="bg-box_bg rounded-[5px] h-10 border-[1px] border-gray-800 flex items-center">
-  <div className="flex items-center space-x-2 px-3 py-2 text-sm bg-[#1f1f1f] text-white">
-    <FaCoins className="w-4 h-4" />
-    <span className="min-w-[60px] font-medium">
-      {userData?.coinBalance?.toLocaleString() || 0}
-    </span>
-  </div>
-  <button
-    className="px-3 py-2 hover:bg-[#444] cursor-pointer text-white transition-colors duration-200 border-l border-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-    onClick={refreshCoinBalance}
-    disabled={isRefreshingCoinBalance}
-    aria-label={t.refreshCoinBalance}
-  >
-    <FiRefreshCw
-      className={`w-4 h-4 ${isRefreshingCoinBalance ? 'animate-spin' : ''}`}
-    />
-  </button>
-</div>
+                  <div className="flex items-center space-x-2 px-3 py-2 text-sm bg-[#1f1f1f] text-white">
+                    <FaCoins className="w-4 h-4" />
+                    <span className="min-w-[60px] font-medium">
+                      {userData?.coinBalance?.toLocaleString() || 0}
+                    </span>
+                  </div>
+                  <button
+                    className="px-3 py-2 hover:bg-[#444] cursor-pointer text-white transition-colors duration-200 border-l border-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={refreshCoinBalance}
+                    disabled={isRefreshingCoinBalance}
+                    aria-label={t.refreshCoinBalance}
+                  >
+                    <FiRefreshCw
+                      className={`w-4 h-4 ${isRefreshingCoinBalance ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+                </div>
                 <div className="bg-box_bg rounded-[5px] h-10 border-[1px] border-gray-800 flex items-center">
                   <div className="flex items-center space-x-2 px-3 py-2 text-sm bg-[#1f1f1f] text-white">
                     <img
@@ -998,9 +1072,6 @@ const refreshCoinBalance = async () => {
                   </button>
                 </div>
 
-                {/* Coin Balance Box */}
-           {/* Coin Balance Box - Same style as BDT but with different icon and color */}
-
                 <div className="flex justify-center items-center gap-2">
                   <NavLink
                     to="/member/withdraw"
@@ -1017,7 +1088,6 @@ const refreshCoinBalance = async () => {
                 </div>
               </div>
 
-              {/* Mobile View - Only show balance, no coin balance */}
               <div className="md:hidden flex px-[10px] items-center gap-2">
                 <div className="bg-box_bg rounded-[5px] border-[1px] border-gray-800 flex items-center">
                   <div className="flex items-center space-x-2 px-3 py-2 text-sm">
@@ -1047,12 +1117,7 @@ const refreshCoinBalance = async () => {
                 >
                   {t.deposit}
                 </NavLink>
-                <NavLink
-                  to="/member/withdraw"
-                  className="text-white text-[12px] px-3 py-2 border-[1px] cursor-pointer border-gray-700 rounded hover:bg-[#333] transition-all duration-200"
-                >
-                  {t.withdrawal}
-                </NavLink>
+       
               </div>
             </>
           ) : (
@@ -1082,18 +1147,24 @@ const refreshCoinBalance = async () => {
       >
         <button
           onClick={() => setSidebarOpen(false)}
-          className="md:hidden absolute top-3 right-3 cursor-pointer p-2 rounded-[3px] bg-[#303232] hover:bg-[#333] z-50"
+          className="md:hidden absolute top-3 right-3 cursor-pointer p-2 rounded-[3px]  z-50"
         >
           <IoClose size={18} />
         </button>
         <div
-          className={`w-full md:w-80 transition-opacity duration-300 ${
+          className={`w-full pt-[30px] md:pt-[10px] md:w-80 transition-opacity duration-300 ${
             sidebarOpen ? "opacity-100" : "opacity-0"
           }`}
         >
-          <div className="w-full flex justify-start items-center px-4 pt-4 pb-3 md:sticky top-0 left-0 bg-[#1A1A1A]">
+          {/* Mobile Sidebar Header with Home Icon (Left) and Live Chat (Right area) */}
+          <div className="md:hidden">
+            {renderMobileSidebarHeader()}
+          </div>
+          
+          {/* Desktop Live Chat - same as before */}
+          <div className="w-full hidden md:flex justify-start items-center px-4 pt-4 pb-3 md:sticky top-0 left-0 bg-[#1A1A1A]">
             <a
-              href="https://wa.me/+4407386588951"
+              href="https://wa.me/+447311133922"
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full"
@@ -1105,7 +1176,6 @@ const refreshCoinBalance = async () => {
             </a>
           </div>
 
-          {/* ── Language Toggle in Sidebar ────────────────────────────────── */}
           <div className="px-4 py-3 border-b border-[#2a2a2a]">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">{t.language}</span>
@@ -1120,24 +1190,9 @@ const refreshCoinBalance = async () => {
               </div>
             </div>
           </div>
-          {/* ──────────────────────────────────────────────────────────────── */}
 
           <div className="p-[10px]">
             <img className="w-full" src={banner} alt="" />
-          </div>
-
-          {/* Download App in Sidebar */}
-          <div className="px-2 mt-4">
-            <button
-              className="flex items-center p-3 rounded w-full bg-gradient-to-r from-theme_color/20 to-theme_color/10 text-theme_color cursor-pointer hover:bg-theme_color/30 transition-all duration-200 border border-theme_color/30"
-              onClick={() => { downloadFileAtURL(APK_FILE) }}
-            >
-              <FaMobileAlt className="w-6 h-6 min-w-[24px]" />
-              <div className="flex items-center ml-3 w-full">
-                <span className="text-sm font-semibold flex-grow">{t.downloadAppNow}</span>
-                <FaChevronRight className="text-xs" />
-              </div>
-            </button>
           </div>
 
           <div className="space-y-1 px-2 mt-[15px]">
@@ -1147,7 +1202,10 @@ const refreshCoinBalance = async () => {
               </div>
             )}
 
-            {/* Categories List - Exclusive always at top */}
+            {/* Static Favorites Category - shown first when logged in */}
+            {renderFavoritesCategory()}
+
+            {/* Dynamic Categories from API with translated names */}
             {categories.map((category, index) => (
               <div key={index}>
                 <div
@@ -1157,17 +1215,17 @@ const refreshCoinBalance = async () => {
                   onClick={() => handleCategoryClick(category)}
                 >
                   <img
-                    src={category.image}
+                    src={getCategoryImage(category)}
                     alt={category.name}
-                    className="w-5 h-5 min-w-[20px]"
+                    className="w-5 h-5 min-w-[20px] object-contain"
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = `https://img.b112j.com/bj/h5/assets/v3/images/icon-set/menu-type/inactive/icon-exclusive.png?v=1767857219215&source=drccdnsrc`;
+                      e.target.src = "https://img.b112j.com/bj/h5/assets/v3/images/icon-set/menu-type/inactive/icon-exclusive.png?v=1767857219215&source=drccdnsrc";
                     }}
                   />
                   <div className="flex items-center ml-3 w-full">
                     <span className="text-sm flex-grow whitespace-nowrap">
-                      {category.name}
+                      {translateCategoryName(category.name)}
                     </span>
                     {activeMenu === category.name ? (
                       <FaChevronDown className="text-xs transition-transform duration-200" />
@@ -1225,6 +1283,9 @@ const refreshCoinBalance = async () => {
                                 src={`${API_BASE_URL}/${provider.image}`}
                                 alt={provider.name}
                                 className="w-6 h-6 mr-2"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
                               />
                               <span className="text-xs text-gray-400">
                                 {provider.name}
@@ -1289,7 +1350,6 @@ const refreshCoinBalance = async () => {
                   </div>
                 </div>
 
-                {/* Contact Us Submenu */}
                 {item.isContact && activeMenu === item.title && (
                   <div className="pl-3 mb-2 space-y-2 animate-fadeIn">
                     {loadingSocialLinks ? (
@@ -1360,11 +1420,10 @@ const refreshCoinBalance = async () => {
                         })}
                       </div>
                     ) : (
-                      // Fallback grid
                       <div className="grid grid-cols-2 gap-3 p-2">
                         <div
                           className="flex flex-col items-center p-3 rounded-lg cursor-pointer bg-gradient-to-r from-green-900/20 to-green-700/10 border border-green-700/30 hover:scale-105 transition-all duration-200 hover:shadow-lg"
-                          onClick={() => window.open("https://wa.me/+4407386588951", "_blank")}
+                          onClick={() => window.open("https://wa.me/+447311133922", "_blank")}
                         >
                           <div className="mb-2">
                             <FaWhatsapp className="text-2xl text-green-400" />
@@ -1393,16 +1452,6 @@ const refreshCoinBalance = async () => {
                         </div>
 
                         <div
-                          className="flex flex-col items-center p-3 rounded-lg cursor-pointer bg-gradient-to-r from-pink-900/20 to-purple-700/10 border border-pink-700/30 hover:scale-105 transition-all duration-200 hover:shadow-lg"
-                          onClick={() => window.open("https://instagram.com", "_blank")}
-                        >
-                          <div className="mb-2">
-                            <FaInstagram className="text-2xl text-pink-400" />
-                          </div>
-                          <span className="text-xs font-medium text-pink-300">{t.instagram}</span>
-                        </div>
-
-                        <div
                           className="flex flex-col items-center p-3 rounded-lg cursor-pointer bg-gradient-to-r from-sky-900/20 to-sky-700/10 border border-sky-700/30 hover:scale-105 transition-all duration-200 hover:shadow-lg"
                           onClick={() => window.open("https://t.me/bajiman", "_blank")}
                         >
@@ -1410,16 +1459,6 @@ const refreshCoinBalance = async () => {
                             <FaTelegram className="text-2xl text-sky-400" />
                           </div>
                           <span className="text-xs font-medium text-sky-300">{t.telegram}</span>
-                        </div>
-
-                        <div
-                          className="flex flex-col items-center p-3 rounded-lg cursor-pointer bg-gradient-to-r from-gray-900/20 to-gray-700/10 border border-gray-700/30 hover:scale-105 transition-all duration-200 hover:shadow-lg"
-                          onClick={() => window.open("https://twitter.com", "_blank")}
-                        >
-                          <div className="mb-2">
-                            <FaTwitter className="text-2xl text-gray-400" />
-                          </div>
-                          <span className="text-xs font-medium text-gray-300">{t.twitter}</span>
                         </div>
                       </div>
                     )}
@@ -1438,8 +1477,7 @@ const refreshCoinBalance = async () => {
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}
-
-      {/* Mobile App Download Banner */}
+{/* 
       {showMobileAppBanner && isMobileDevice() && (
         <div className="fixed bottom-0 left-0 h-full right-0 flex justify-center items-end bg-[rgba(0,0,0,0.4)] border-t border-[#333] z-[10001] shadow-lg">
           <div className="w-full flex items-center justify-between bg-gradient-to-r from-[#1a1a1a] to-[#2a2a2a] p-3">
@@ -1469,11 +1507,10 @@ const refreshCoinBalance = async () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
-      {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-[#333] z-50"
-           style={showMobileAppBanner ? { bottom: '80px' } : {}}>
+          >
         <div className="flex justify-around items-center py-2">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1498,16 +1535,6 @@ const refreshCoinBalance = async () => {
             <img src={slot_img} alt="Slots" className="h-6 w-6 mb-1" />
             <span>{t.slots}</span>
           </NavLink>
-
-          {/* Download App Button in Mobile Bottom Bar */}
-          <button
-            onClick={() => downloadFileAtURL(APK_FILE)}
-            className="flex flex-col items-center justify-center p-2 text-xs text-theme_color hover:text-yellow-400 transition-colors"
-          >
-            <FaMobileAlt className="h-6 w-6 mb-1" />
-            <span>{t.app}</span>
-          </button>
-
           {isLoggedIn ? (
             <NavLink
               to="/my-profile"
@@ -1534,11 +1561,9 @@ const refreshCoinBalance = async () => {
         </div>
       </div>
 
-      {/* WhatsApp & Telegram Floating Buttons - Vertical Stack */}
       <div className="fixed bottom-25 md:bottom-20 right-4 z-[1000] flex flex-col gap-2">
-        {/* Telegram Button - Top */}
         <a
-          href="https://t.me/bajiman"
+          href="https://t.me/jams1x"
           target="_blank"
           rel="noopener noreferrer"
           className="transition-all duration-300 animate-bounce hover:animate-pulse"
@@ -1548,9 +1573,8 @@ const refreshCoinBalance = async () => {
          <img src={telegram_icon} className="w-[80px]" alt="" />
         </a>
 
-        {/* WhatsApp Button - Bottom */}
         <a
-          href="https://wa.me/+4407386588951"
+          href="https://wa.me/+254141061826"
           target="_blank"
           rel="noopener noreferrer"
           className="transition-all duration-300 animate-bounce hover:animate-pulse"
@@ -1561,7 +1585,6 @@ const refreshCoinBalance = async () => {
         </a>
       </div>
 
-      {/* Signup Success Popup */}
       {showSignupPopup && (
         <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] bg-opacity-70 backdrop-blur-md flex items-center justify-center z-[10000] p-4">
           <div ref={popupRef} className="bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] border border-[#333] rounded-lg p-6 max-w-md w-full relative">
@@ -1595,7 +1618,6 @@ const refreshCoinBalance = async () => {
         </div>
       )}
 
-      {/* Game Loading Spinner */}
       {gameLoading && (
         <div className="fixed inset-0 bg-[rgba(0,0,0,0.7)] flex items-center justify-center z-[1000]">
           <div className="flex flex-col items-center">
@@ -1607,15 +1629,13 @@ const refreshCoinBalance = async () => {
         </div>
       )}
 
-      {/* Add CSS for game images in sidebar */}
       <style>
         {`
-          /* Force consistent image size and aspect ratio - Portrait 3:4 for exclusive games */
           .game-image-container {
             position: relative;
             width: 100%;
             height: 0;
-            padding-bottom: 133.33%; /* 3:4 aspect ratio (portrait) */
+            padding-bottom: 133.33%;
             overflow: hidden;
             border-radius: 6px;
           }
@@ -1629,7 +1649,6 @@ const refreshCoinBalance = async () => {
             object-fit: cover;
           }
 
-          /* Smooth skeleton animation */
           @keyframes pulse {
             0%, 100% {
               opacity: 1;
@@ -1643,7 +1662,6 @@ const refreshCoinBalance = async () => {
             animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
           }
 
-          /* Custom scrollbar hide for mobile */
           .no-scrollbar::-webkit-scrollbar {
             display: none;
           }
